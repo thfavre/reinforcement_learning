@@ -18,6 +18,7 @@ https://github.com/thfavre/reinforcement_learning/assets/67341005/021a0a3d-1de3-
 - **Input Neurons:** 4 neurons representing square's X and Y positions, and circle's X and Y positions.
 - **Hidden Layer:** 1 layer with 12 neurons to process the input data.
 - **Output Neurons:** 4 neurons representing movement directions (UP, RIGHT, LEFT, DOWN) for the squares.
+- **Population size:** 1000
 </details>
 
 
