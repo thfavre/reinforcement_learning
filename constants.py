@@ -1,0 +1,6 @@
+# Colors
+BLACK = (0, 0, 0)
+WHITE = (222, 222, 222)
+YELLOW = (255,200,20)
+GREEN = (20, 200, 10)
+LIGHT_BLUE = (111, 223, 247)

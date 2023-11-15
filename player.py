@@ -7,9 +7,9 @@ class Player:
 		self.surface = surface
 		self.size = 40
 		# self.movingSpeed = 30
-		self.max_speed = 30
+		self.max_speed = 1000 # 30 # 50
 		self.velocity = [0, 0]
-		self.acceleration_rate = 3
+		self.acceleration_rate = 10 # 3 # 5
 		# self.decceleration_rate = 0.1
 		self.pos = [self.surface.get_width()//2 - self.size//2, self.surface.get_height()//2 - self.size//2]
 		self.rect = pygame.rect.Rect(self.pos[0], self.pos[1], self.size, self.size)

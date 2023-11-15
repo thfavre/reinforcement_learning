@@ -6,8 +6,9 @@ import random
 import math
 from copy import deepcopy
 
+from constants import *
 from player import Player
-
+import utils
 
 # Setup pygame/window ---------------------------------------- #
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (100,32) # windows position
@@ -20,10 +21,10 @@ SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT),0,32)
 mainClock = pygame.time.Clock()
 
 # Fonts ------------------------------------------------------- #
-huge_font = pygame.font.SysFont("coopbl", 44)
-big_font = pygame.font.SysFont("coopbl", 28)
-medium_font = pygame.font.SysFont("coopbl", 22)
-small_font = pygame.font.SysFont("coopbl", 16)
+huge_font = pygame.font.SysFont("coopbl", 48)
+big_font = pygame.font.SysFont("coopbl", 32)
+medium_font = pygame.font.SysFont("coopbl", 26)
+small_font = pygame.font.SysFont("coopbl", 20)
 
 # Classes --------------------------------------------------------- #
 
@@ -58,9 +59,15 @@ class Game:
         self.goals = []
         self.add_new_goal()
         self.add_new_goal()
+        self.last_10_max_goals = []
+        self.last_10_avrage_goals = []
 
         self.playersNb = 500
         self.players = [Player(SCREEN) for i in range(self.playersNb)]
+
+        self.displayed_players_proportions = 20 # 1 every X players
+        self.mutation_rate = 0.1
+
 
     def add_new_goal(self):
         self.goals.append(Goal(SCREEN, len(self.goals) + 1))
@@ -75,32 +82,72 @@ class Game:
                 distance += math.sqrt((self.goals[player.current_goal_index].rect.centerx - self.goals[player.current_goal_index + 1].rect.centerx)**2 + (self.goals[player.current_goal_index].rect.centery - self.goals[player.current_goal_index + 1].rect.centery)**2)
                 player.current_goal_index += 1
 
-
             player.score = distance # the lower the better
 
     def select_best_players(self, nb):
         self.players.sort(key=lambda x: x.score, reverse=False)
         return self.players[:nb]
 
+
+    def create_new_generation(self):
+        self.calculate_score()
+        best_players = self.select_best_players(10)
+        best_players += self.select_best_players(10)
+        best_players += self.select_best_players(30)
+        best_players += random.choices(self.players, k=5)
+        # best_players += self.select_best_players(40)
+        # best_players += random.choices(self.players, k=5)
+        self.players = []
+        # keep the best players unchanged
+        keep_best_players = 5
+        for player in best_players[:keep_best_players]:
+            new_player = Player(SCREEN, player.color, deepcopy(player.brain))
+            self.players.append(new_player)
+        # repopulate the players with the best X with mutations
+        k = self.playersNb - keep_best_players
+        for player_to_copy in random.choices(best_players, k=k):
+            new_player = Player(SCREEN, player_to_copy.color, deepcopy(player_to_copy.brain))
+            new_player.brain.mutate(self.mutation_rate)
+            self.players.append(new_player)
+
+
     def next_round(self):
         self.generation += 1
-        self.calculate_score()
-        best_players = self.select_best_players(50)
-        print("Generation: ", self.generation)
-        print("\tBest score: ", best_players[0].score)
 
+        self.last_10_max_goals.append(len(self.goals) - 1)
+        if len(self.last_10_max_goals) > 10:
+            self.last_10_max_goals.pop(0)
+
+        self.last_10_avrage_goals.append(round(sum([player.current_goal_index for player in self.players]) / len(self.players), 2))
+        if len(self.last_10_avrage_goals) > 10:
+            self.last_10_avrage_goals.pop(0)
+
+        self.create_new_generation()
+        # reset the goals
         self.goals = []
         self.add_new_goal()
         self.add_new_goal()
 
-        # repopulate the players with the best X with mutations
-        self.players = []
-        # self.players += best_players # keep the bests players # it doesn't work because the players are the same objects
-        for i in range(self.playersNb ): # - len(best_players)
-            player_to_copy = random.choice(best_players)
-            new_player = Player(SCREEN, player_to_copy.color, deepcopy(player_to_copy.brain))
-            new_player.brain.mutate(0.4)
-            self.players.append(new_player)
+
+    def draw_info_text(self):
+        tips = (
+            (f"Generation: {self.generation}", big_font, YELLOW),
+            (f"FPS: {int(mainClock.get_fps())}", medium_font, WHITE),
+            (f"Move remaining: {self.actions_per_round - self.current_action}", medium_font, WHITE),
+            (f"Population size: {len(self.players)}", medium_font, WHITE),
+            (f"Layers size: {self.players[0].brain.layers_size}", medium_font, LIGHT_BLUE),
+            (f"Mutation rate: {self.mutation_rate}", medium_font, LIGHT_BLUE),
+            (f"Avrage goal nb: {round(sum([player.current_goal_index for player in self.players]) / len(self.players), 2)}", medium_font, GREEN),
+            (f"Avrage 10 last goals: {round(sum(self.last_10_avrage_goals) / len(self.last_10_avrage_goals), 2) if len(self.last_10_avrage_goals) != 0 else 0}", medium_font, GREEN),
+            (f"Max goals nb: {len(self.goals)-1}", medium_font, WHITE),
+            (f"Avrage 10 last max goals: {round(sum(self.last_10_max_goals) / len(self.last_10_max_goals), 2) if len(self.last_10_max_goals) != 0 else 0}", medium_font, WHITE),
+            (f"Displayed players proportion: 1 / {self.displayed_players_proportions}", medium_font, WHITE),
+        )
+        pos = [10, 10]
+        spacing = 8
+        for text, font, color in tips:
+            utils.draw_text(SCREEN, text, pos, font, color)
+            pos[1] += font.get_height() + spacing
 
     def redraw(self):
         SCREEN.fill((22,22,22))
@@ -110,21 +157,10 @@ class Game:
             goal.draw(len(self.goals))
 
         # draw the players
-        for player in self.players[::20]:
+        for player in self.players[::self.displayed_players_proportions]:
             player.draw()
 
-        generation_label = big_font.render(f"Generation: {self.generation}", 1, (255,200,20))
-        SCREEN.blit(generation_label, (10,10))
-        fps_label = medium_font.render(f"FPS: {int(mainClock.get_fps())}", 1, (255,200,20))
-        SCREEN.blit(fps_label, (10,35))
-        move_remaining_label = medium_font.render(f"Move remaining: {self.actions_per_round - self.current_action}", 1, (255,200,20))
-        SCREEN.blit(move_remaining_label, (10,55))
-        player_nb_label = medium_font.render(f"Population size: {len(self.players)}", 1, (255,200,20))
-        SCREEN.blit(player_nb_label, (10,75))
-        layers_size_label = medium_font.render(f"Layers size: {self.players[0].brain.layers_size}", 1, (255,200,20))
-        SCREEN.blit(layers_size_label, (10,95))
-        max_goals_nb_label = medium_font.render(f"Max goals nb: {len(self.goals)-1}", 1, (255,200,20))
-        SCREEN.blit(max_goals_nb_label, (10,115))
+        self.draw_info_text()
 
     def update(self):
 
@@ -158,6 +194,14 @@ class Game:
                     sys.exit()
                 # if event.key == pygame.K_SPACE:
                 #     self.next_round()
+                if event.key == pygame.K_DOWN:
+                    self.displayed_players_proportions *= 2
+                    if self.displayed_players_proportions > self.playersNb:
+                        self.displayed_players_proportions = self.playersNb
+                if event.key == pygame.K_UP:
+                    self.displayed_players_proportions //= 2
+                    if self.displayed_players_proportions < 1:
+                        self.displayed_players_proportions = 1
 
 
 
