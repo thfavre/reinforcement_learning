@@ -23,6 +23,14 @@ https://github.com/thfavre/reinforcement_learning/assets/67341005/021a0a3d-1de3-
 
 
 <details>
-  <summary><b>2) coming soon</b></summary>
-  
+  <summary><b>2) +Velocity +Checkpoints</b></summary>
+
+Checkpoints and velocity have been integrated into the neural network architecture to enhance its learning capabilities.
+
+https://github.com/thfavre/reinforcement_learning/assets/67341005/9b75bdfe-8d08-4e93-b09a-6d5490ad6801
+
+- **Input Neurons:** 8 neurons (posX, posY, goalPosX, goalPosY, velocityX, velocityY, nextGoalPosX, nextGoalPosY)
+- **Hidden Layer:** 1 layer with 12 neurons
+- **Output Neurons:** 4 neurons (UP, RIGHT, LEFT, DOWN)
+- **Population size:** 500
 </details>
